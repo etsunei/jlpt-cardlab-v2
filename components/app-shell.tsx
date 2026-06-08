@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { BarChart3, BookOpen, Brain, Home, Library, Settings, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLearningStore } from "@/stores/learning-store";
 
 const nav = [
   { href: "/", label: "首页", icon: Home },
@@ -18,6 +20,11 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const loadFullVocab = useLearningStore((state) => state.loadFullVocab);
+
+  useEffect(() => {
+    void loadFullVocab();
+  }, [loadFullVocab]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
