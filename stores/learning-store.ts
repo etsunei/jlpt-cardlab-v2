@@ -2,13 +2,15 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import sampleVocab from "@/data/jlpt-vocab-elzup-normalized.json";
+import sampleVocab from "@/data/sample-vocab.json";
 import { DailyStats, JlptLevel, ReviewRating, ReviewState, VocabEntry } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { scheduleReview } from "@/lib/srs";
 
 type LearningStore = {
   entries: VocabEntry[];
+  fullVocabLoaded: boolean;
+  fullVocabLoading: boolean;
   selectedLevel: JlptLevel | "ALL";
   favorites: string[];
   important: string[];
@@ -18,6 +20,7 @@ type LearningStore = {
   toggleFavorite: (id: string) => void;
   toggleImportant: (id: string) => void;
   upsertEntries: (entries: VocabEntry[]) => void;
+  loadFullVocab: () => Promise<void>;
   rate: (entry: VocabEntry, rating: ReviewRating) => void;
   dueEntries: () => VocabEntry[];
   newEntries: (limit?: number) => VocabEntry[];
@@ -40,6 +43,8 @@ export const useLearningStore = create<LearningStore>()(
   persist(
     (set, get) => ({
       entries: sampleVocab as VocabEntry[],
+      fullVocabLoaded: false,
+      fullVocabLoading: false,
       selectedLevel: "ALL",
       favorites: [],
       important: [],
@@ -60,6 +65,26 @@ export const useLearningStore = create<LearningStore>()(
           entries.forEach((entry) => merged.set(entry.id, entry));
           return { entries: Array.from(merged.values()) };
         }),
+      loadFullVocab: async () => {
+        const { fullVocabLoaded, fullVocabLoading } = get();
+        if (fullVocabLoaded || fullVocabLoading) return;
+
+        set({ fullVocabLoading: true });
+        try {
+          const response = await fetch("/vocab/jlpt-vocab-elzup-normalized.json");
+          if (!response.ok) throw new Error("Failed to load full vocabulary");
+          const entries = (await response.json()) as VocabEntry[];
+          const merged = new Map(get().entries.map((entry) => [entry.id, entry]));
+          entries.forEach((entry) => merged.set(entry.id, entry));
+          set({
+            entries: Array.from(merged.values()),
+            fullVocabLoaded: true,
+            fullVocabLoading: false
+          });
+        } catch {
+          set({ fullVocabLoading: false });
+        }
+      },
       rate: (entry, rating) =>
         set((state) => {
           const next = scheduleReview(state.review[entry.id], rating);
