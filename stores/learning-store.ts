@@ -12,15 +12,18 @@ type LearningStore = {
   fullVocabLoaded: boolean;
   fullVocabLoading: boolean;
   selectedLevel: JlptLevel | "ALL";
+  groupSize: number;
   favorites: string[];
   important: string[];
   review: Record<string, ReviewState>;
   daily: DailyStats[];
   setLevel: (level: JlptLevel | "ALL") => void;
+  setGroupSize: (size: number) => void;
   toggleFavorite: (id: string) => void;
   toggleImportant: (id: string) => void;
   upsertEntries: (entries: VocabEntry[]) => void;
   loadFullVocab: () => Promise<void>;
+  completeLearning: (entry: VocabEntry) => void;
   rate: (entry: VocabEntry, rating: ReviewRating) => void;
   dueEntries: () => VocabEntry[];
   newEntries: (limit?: number) => VocabEntry[];
@@ -46,11 +49,13 @@ export const useLearningStore = create<LearningStore>()(
       fullVocabLoaded: false,
       fullVocabLoading: false,
       selectedLevel: "ALL",
+      groupSize: 10,
       favorites: [],
       important: [],
       review: {},
       daily: [],
       setLevel: (level) => set({ selectedLevel: level }),
+      setGroupSize: (size) => set({ groupSize: Math.min(100, Math.max(10, Math.round(size))) }),
       toggleFavorite: (id) =>
         set((state) => ({
           favorites: state.favorites.includes(id) ? state.favorites.filter((item) => item !== id) : [...state.favorites, id]
@@ -85,6 +90,19 @@ export const useLearningStore = create<LearningStore>()(
           set({ fullVocabLoading: false });
         }
       },
+      completeLearning: (entry) =>
+        set((state) => {
+          const next = scheduleReview(state.review[entry.id], "good");
+          next.vocab_id = entry.id;
+          return {
+            review: { ...state.review, [entry.id]: next },
+            daily: updateDaily(state.daily, {
+              learned: (state.daily.find((item) => item.date === formatDateKey())?.learned ?? 0) + 1,
+              correct: (state.daily.find((item) => item.date === formatDateKey())?.correct ?? 0) + 1,
+              total: (state.daily.find((item) => item.date === formatDateKey())?.total ?? 0) + 1
+            })
+          };
+        }),
       rate: (entry, rating) =>
         set((state) => {
           const next = scheduleReview(state.review[entry.id], rating);
