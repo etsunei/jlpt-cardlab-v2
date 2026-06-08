@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import sampleVocab from "@/data/sample-vocab.json";
+import sampleVocab from "@/data/jlpt-vocab-elzup-normalized.json";
 import { DailyStats, JlptLevel, ReviewRating, ReviewState, VocabEntry } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { scheduleReview } from "@/lib/srs";
